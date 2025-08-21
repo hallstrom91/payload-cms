@@ -1,25 +1,64 @@
 import type { CollectionConfig } from 'payload'
-import { authenticated } from '@/access/authenticated'
+import { admins } from '@/access/admin'
+import { adminsAndUsers } from '@/access/adminsAndUsers'
+import { checkRole } from '@/access/checkRole'
+import { protectedRoles } from './hooks/protectedRoles'
+import { adminsField } from '@/access/fields/admin'
 
 export const Users: CollectionConfig = {
   slug: 'users',
+  auth: {
+    tokenExpiration: 28800,
+    cookies: {
+      sameSite: 'None',
+      secure: false, // true in prod
+      domain: process.env.COOKIE_DOMAIN,
+    },
+  },
   admin: {
-    defaultColumns: ['name', 'email'],
-    useAsTitle: 'name',
+    useAsTitle: 'email',
   },
   access: {
-    admin: authenticated,
-    create: authenticated,
-    delete: authenticated,
-    read: authenticated,
-    update: authenticated,
+    read: adminsAndUsers,
+    create: admins,
+    update: admins,
+    delete: admins,
+    unlock: admins,
+    admin: ({ req: { user } }) => checkRole(['admin'], user),
   },
-  auth: true,
   fields: [
-    // Email added by default
     {
-      name: 'name',
+      name: 'firstName',
       type: 'text',
+    },
+    {
+      name: 'lastName',
+      type: 'text',
+    },
+
+    {
+      name: 'roles',
+      type: 'select',
+      hasMany: true,
+      saveToJWT: true,
+      access: {
+        read: adminsField,
+        update: adminsField,
+        create: adminsField,
+      },
+      hooks: {
+        beforeChange: [protectedRoles],
+      },
+      options: [
+        {
+          label: 'Admin',
+          value: 'admin',
+        },
+        {
+          label: 'User',
+          value: 'user',
+        },
+      ],
     },
   ],
   timestamps: true,
