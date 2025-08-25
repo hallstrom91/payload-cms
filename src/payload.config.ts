@@ -11,6 +11,8 @@ import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { Categories } from './collections/Categories'
 import { Posts } from './collections/Posts'
+import { seedAdminIfEmpty } from './utils/seed'
+import { ENV } from './env'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -18,9 +20,6 @@ const dirname = path.dirname(filename)
 export default buildConfig({
   admin: {
     user: Users.slug,
-    importMap: {
-      baseDir: path.resolve(dirname),
-    },
   },
   collections: [Users, Media, Categories, Posts],
   editor: lexicalEditor(),
@@ -34,6 +33,7 @@ export default buildConfig({
     },
   }),
   sharp,
+
   localization: {
     locales: [
       { label: 'English', code: 'en' },
@@ -45,12 +45,20 @@ export default buildConfig({
     defaultLocale: 'en', // required
     fallback: true,
   },
+
   cors: {
-    origins: ['http://localhost:5173'],
-    headers: ['x-custom-header'],
+    origins: [ENV.NEXT_PUBLIC_CMS_URL, ENV.NEXT_PUBLIC_BLOG_URL],
+    headers: ['Authorization'],
   },
+
+  //csrf: [ENV.NEXT_PUBLIC_BLOG_URL, ENV.NEXT_PUBLIC_CMS_URL],
+
   plugins: [
     payloadCloudPlugin(),
     // storage-adapter-placeholder
   ],
+
+  onInit: async (payload) => {
+    if (ENV.SEED_ENABLED) await seedAdminIfEmpty(payload)
+  },
 })
