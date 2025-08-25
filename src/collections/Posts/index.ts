@@ -1,36 +1,43 @@
 import type { CollectionConfig } from 'payload'
 import {
   BlocksFeature,
-  defaultRichTextValue,
+  // defaultRichTextValue,
   FixedToolbarFeature,
   HeadingFeature,
   HorizontalRuleFeature,
   InlineToolbarFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import { anyone } from '@/access/anyone'
-import { authenticated } from '@/access/authenticated'
+
 import { revalidateDelete, revlidatePost } from './hooks/revalidatePost'
 import { populateAuthors } from './hooks/populateAuthors'
+
+import { CodeBlock } from '@/blocks/Code'
+import { JSONBlock } from '@/blocks/Json'
+import { QuoteBlock } from '@/blocks/Quotes'
+import { MediaBlock } from '@/blocks/Media'
+
+import { admins, adminsOrEditors, selfOrAdmin } from '@/access/roles'
+import { authenticated } from '@/access/authenticated'
+import { adminField } from '@/fields/admin'
+import { setDefaultAuthor } from './hooks/defaultAuthor'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
-    create: authenticated,
-    delete: authenticated,
-    read: anyone,
-    update: authenticated,
+    create: adminsOrEditors,
+    read: authenticated,
+    update: selfOrAdmin,
+    delete: admins,
   },
   labels: { singular: 'Post', plural: 'Posts' },
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'slug', 'updatedAt'],
+    defaultColumns: ['title'],
   },
   versions: {
     drafts: true,
   },
-
-  // hooks : {},
 
   fields: [
     // title & slug
@@ -45,23 +52,115 @@ export const Posts: CollectionConfig = {
           required: true,
           admin: { width: '60%' },
         },
+
         {
           name: 'slug',
           type: 'text',
           localized: true,
           unique: true,
-          admin: { width: '40%', description: 'Autogenerate from title (replaceable)' },
+          admin: { width: '40%', description: 'Autogenerate from title' },
+          access: {
+            create: () => true,
+            update: adminField, // only admin can update slug
+            read: () => true,
+          },
         },
       ],
     },
 
-    // Tabs - Image / Content / Relationship / META/SEO
+    // relations
+    {
+      // FIX: cant connect related published posts, only @ update
+      name: 'relatedPosts',
+      type: 'relationship',
+      localized: true,
+      relationTo: 'posts',
+      filterOptions: ({ id }) => {
+        return {
+          id: {
+            not_in: [id],
+          },
+        }
+      },
+      hasMany: true,
+    },
+
+    {
+      name: 'categories',
+      type: 'relationship',
+      relationTo: 'categories',
+      hasMany: true,
+      required: true,
+    },
+
+    // author and publishedAt
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'authors',
+          //type: 'text',
+          type: 'relationship',
+          hasMany: true,
+          relationTo: 'users',
+          admin: {
+            width: '100%',
+          },
+        },
+
+        {
+          name: 'populatedAuthors',
+          type: 'array',
+          access: {
+            update: () => false,
+            create: () => false,
+            read: () => true,
+          },
+          admin: {
+            hidden: true,
+            disabled: true,
+            readOnly: true,
+          },
+          fields: [
+            {
+              name: 'id',
+              type: 'text',
+            },
+            {
+              name: 'fullname',
+              type: 'text',
+            },
+          ],
+        },
+
+        {
+          name: 'publishedAt',
+          type: 'date',
+          admin: {
+            date: { pickerAppearance: 'dayAndTime' },
+            width: '30%',
+          },
+          hooks: {
+            beforeChange: [
+              ({ siblingData, value }) => {
+                if (siblingData._status === 'published' && !value) {
+                  return new Date()
+                }
+                return value
+              },
+            ],
+          },
+        },
+      ],
+    },
+
+    // Tabs - Media / Content / Meta
     {
       type: 'tabs',
       tabs: [
         {
           label: 'Media',
-          description: 'Upload or Select image and/or other media to post.',
+          description: 'Upload or Select image (main/hero)',
           fields: [
             {
               name: 'heroImage',
@@ -85,7 +184,7 @@ export const Posts: CollectionConfig = {
                   return [
                     ...rootFeatures,
                     HeadingFeature({ enabledHeadingSizes: ['h1', 'h2'] }),
-                    // BlocksFeature({blocks: [Banner, Code, MediaBlock]}),
+                    BlocksFeature({ blocks: [CodeBlock, JSONBlock, QuoteBlock, MediaBlock] }),
                     FixedToolbarFeature(),
                     InlineToolbarFeature(),
                     HorizontalRuleFeature(),
@@ -99,111 +198,17 @@ export const Posts: CollectionConfig = {
         },
 
         {
-          label: 'Relationship',
-          description: 'Add related posts and/or categories.',
-          fields: [
-            {
-              name: 'relatedPosts',
-              type: 'relationship',
-              localized: true,
-              admin: { position: 'sidebar' },
-              relationTo: 'posts',
-              filterOptions: ({ id }) => {
-                return {
-                  id: {
-                    not_in: [id],
-                  },
-                }
-              },
-              hasMany: true,
-            },
-            {
-              name: 'categories',
-              type: 'relationship',
-              admin: { position: 'sidebar' },
-              relationTo: 'categories',
-              hasMany: true,
-              required: true,
-            },
-          ],
-        },
-
-        /*         { 
-            label: 'SEO', 
-            description: 'Add META/SEO options', 
-            fields: [
-                {},
-                {},
-            ] 
-        }, */
-      ],
-    },
-
-    {
-      name: 'publishedAt',
-      type: 'date',
-      admin: {
-        date: { pickerAppearance: 'dayAndTime' },
-        position: 'sidebar',
-      },
-      hooks: {
-        beforeChange: [
-          ({ siblingData, value }) => {
-            if (siblingData._status === 'published' && !value) {
-              return new Date()
-            }
-            return value
-          },
-        ],
-      },
-    },
-
-    // remove 'authors' and only use populatedAuthors
-    {
-      name: 'authors',
-      type: 'relationship',
-      admin: {
-        position: 'sidebar',
-      },
-      hasMany: true,
-      relationTo: 'users',
-    },
-
-    {
-      name: 'populatedAuthors',
-      type: 'array',
-      access: {
-        update: () => false,
-      },
-      admin: {
-        disabled: true,
-        readOnly: true,
-      },
-      fields: [
-        {
-          name: 'id',
-          type: 'text',
-        },
-        {
-          name: 'name',
-          type: 'text',
+          label: 'Meta',
+          description: 'Add META/SEO options - coming',
+          fields: [{ name: 'text', type: 'text' }],
         },
       ],
     },
-    // ...slugField()
   ],
   hooks: {
+    beforeValidate: [setDefaultAuthor],
     afterChange: [revlidatePost],
-    afterRead: [populateAuthors],
+    // afterRead: [populateAuthors],
     afterDelete: [revalidateDelete],
   },
-  /*   versions: {
-    drafts: {
-      autosave: {
-        interval: 100,
-      },
-      schedulePublish: true,
-    },
-    maxPerDoc: 50,
-  }, */
 }

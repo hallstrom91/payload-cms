@@ -1,14 +1,14 @@
 import { CollectionConfig } from 'payload'
-import { anyone } from '@/access/anyone'
+import { admins, adminsOrEditors, selfOrAdmin } from '@/access/roles'
 import { authenticated } from '@/access/authenticated'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
   access: {
-    create: authenticated,
-    delete: authenticated,
-    read: anyone,
-    update: authenticated,
+    create: adminsOrEditors,
+    read: authenticated,
+    update: selfOrAdmin,
+    delete: admins,
   },
   admin: {
     useAsTitle: 'title',
@@ -20,6 +20,11 @@ export const Categories: CollectionConfig = {
       localized: true,
       required: true,
     },
-    // ...slugField(),
+    {
+      name: 'description',
+      type: 'text',
+      localized: true,
+      required: false,
+    },
   ],
 }

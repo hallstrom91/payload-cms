@@ -1,38 +1,33 @@
 import type { CollectionConfig } from 'payload'
-import { admins } from '@/access/admin'
-import { adminsAndUsers } from '@/access/adminsAndUsers'
-import { checkRole } from '@/access/checkRole'
 import { protectedRoles } from './hooks/protectedRoles'
-import { adminsField } from '@/access/fields/admin'
+import { admins, selfOrAdmin } from '@/access/roles'
+import { adminField } from '@/fields/admin'
+import { checkRole } from '@/access/checkRole'
 
 export const Users: CollectionConfig = {
   slug: 'users',
   auth: {
-    tokenExpiration: 28800,
+    useAPIKey: false,
+    tokenExpiration: 28800, // 8h
     cookies: {
       sameSite: 'None',
-      secure: false, // true in prod
-      domain: process.env.COOKIE_DOMAIN,
+      secure: false,
     },
   },
   admin: {
     useAsTitle: 'email',
   },
   access: {
-    read: adminsAndUsers,
     create: admins,
-    update: admins,
+    read: selfOrAdmin,
+    update: selfOrAdmin,
     delete: admins,
     unlock: admins,
     admin: ({ req: { user } }) => checkRole(['admin'], user),
   },
   fields: [
     {
-      name: 'firstName',
-      type: 'text',
-    },
-    {
-      name: 'lastName',
+      name: 'fullName',
       type: 'text',
     },
 
@@ -41,10 +36,11 @@ export const Users: CollectionConfig = {
       type: 'select',
       hasMany: true,
       saveToJWT: true,
+      defaultValue: ['user'],
       access: {
-        read: adminsField,
-        update: adminsField,
-        create: adminsField,
+        // read: adminField, // fix so user can see roles correct
+        update: adminField,
+        create: adminField,
       },
       hooks: {
         beforeChange: [protectedRoles],
@@ -53,6 +49,10 @@ export const Users: CollectionConfig = {
         {
           label: 'Admin',
           value: 'admin',
+        },
+        {
+          label: 'Editor',
+          value: 'editor',
         },
         {
           label: 'User',
