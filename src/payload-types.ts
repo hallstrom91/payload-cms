@@ -165,6 +165,7 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
+  variant?: YouTubeBlock[] | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -221,6 +222,31 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "YouTube Block".
+ */
+export interface YouTubeBlock {
+  videoId: string;
+  richText?: {
+    root: {
+      type: string;
+      children: {
+        type: string;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'youtubeBlock';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "categories".
  */
 export interface Category {
@@ -243,11 +269,15 @@ export interface Post {
   slug?: string | null;
   relatedPosts?: (number | Post)[] | null;
   categories: (number | Category)[];
-  authors?: (number | User)[] | null;
+  /**
+   * Autogenerate on create/update (if empty)
+   */
+  authors: (number | User)[];
   populatedAuthors?:
     | {
+        authorId?: string | null;
+        fullName?: string | null;
         id?: string | null;
-        fullname?: string | null;
       }[]
     | null;
   publishedAt?: string | null;
@@ -368,6 +398,11 @@ export interface UsersSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
+  variant?:
+    | T
+    | {
+        youtubeBlock?: T | YouTubeBlockSelect<T>;
+      };
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -436,6 +471,16 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "YouTube Block_select".
+ */
+export interface YouTubeBlockSelect {
+  videoId?: boolean;
+  richText?: boolean;
+  id?: boolean;
+  blockName?: boolean;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "categories_select".
  */
 export interface CategoriesSelect<T extends boolean = true> {
@@ -457,8 +502,9 @@ export interface PostsSelect<T extends boolean = true> {
   populatedAuthors?:
     | T
     | {
+        authorId?: T;
+        fullName?: T;
         id?: T;
-        fullname?: T;
       };
   publishedAt?: T;
   heroImage?: T;
