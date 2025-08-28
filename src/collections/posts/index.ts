@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import {
   BlocksFeature,
-  // defaultRichTextValue,
   FixedToolbarFeature,
   HeadingFeature,
   HorizontalRuleFeature,
@@ -11,29 +10,33 @@ import {
 
 import { revalidateDelete, revlidatePost } from './hooks/revalidatePost'
 import { populateAuthors } from './hooks/populateAuthors'
+import {
+  admins,
+  adminsOrEditors,
+  selfOrAdmin,
+  //authenticated,
+  adminField,
+  adminsOrEditorsField,
+} from '@/access'
 
-import { CodeBlock } from '@/blocks/Code'
-import { JSONBlock } from '@/blocks/Json'
-import { QuoteBlock } from '@/blocks/Quotes'
-import { MediaBlock } from '@/blocks/Media'
+import { CodeBlock, JSONBlock, QuoteBlock, MediaBlock } from '@/blocks'
+import { enforceAuthor } from './hooks/defaultAuthor'
 
-import { admins, adminsOrEditors, selfOrAdmin } from '@/access/roles'
-import { authenticated } from '@/access/authenticated'
-import { adminField } from '@/fields/admin'
-import { setDefaultAuthor } from './hooks/defaultAuthor'
+//import { setDefaultAuthor } from './hooks/defaultAuthor'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
     create: adminsOrEditors,
-    read: authenticated,
+    read: () => true,
+    // read: authenticated,
     update: selfOrAdmin,
     delete: admins,
   },
   labels: { singular: 'Post', plural: 'Posts' },
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title'],
+    defaultColumns: ['title', 'populatedAuthors', 'publishedAt'],
   },
   versions: {
     drafts: true,
@@ -70,18 +73,17 @@ export const Posts: CollectionConfig = {
 
     // relations
     {
-      // FIX: cant connect related published posts, only @ update
       name: 'relatedPosts',
       type: 'relationship',
       localized: true,
       relationTo: 'posts',
-      filterOptions: ({ id }) => {
-        return {
-          id: {
-            not_in: [id],
-          },
-        }
-      },
+      // filterOptions: ({ id }) => {
+      //   return {
+      //     id: {
+      //       not_in: [id],
+      //     },
+      //   }
+      // },
       hasMany: true,
     },
 
@@ -99,12 +101,18 @@ export const Posts: CollectionConfig = {
       fields: [
         {
           name: 'authors',
-          //type: 'text',
           type: 'relationship',
           hasMany: true,
           relationTo: 'users',
+          required: true,
+          access: {
+            read: adminsOrEditorsField,
+            create: adminsOrEditorsField,
+            update: adminsOrEditorsField,
+          },
           admin: {
             width: '100%',
+            description: 'Autogenerate on create/update (if empty)',
           },
         },
 
@@ -112,22 +120,21 @@ export const Posts: CollectionConfig = {
           name: 'populatedAuthors',
           type: 'array',
           access: {
-            update: () => false,
-            create: () => false,
             read: () => true,
+            create: () => false,
+            update: () => false,
           },
           admin: {
             hidden: true,
-            disabled: true,
             readOnly: true,
           },
           fields: [
             {
-              name: 'id',
+              name: 'authorId',
               type: 'text',
             },
             {
-              name: 'fullname',
+              name: 'fullName',
               type: 'text',
             },
           ],
@@ -206,9 +213,11 @@ export const Posts: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [setDefaultAuthor],
+    beforeValidate: [enforceAuthor],
+    beforeChange: [populateAuthors],
     afterChange: [revlidatePost],
-    // afterRead: [populateAuthors],
     afterDelete: [revalidateDelete],
+    // beforeValidate: [setDefaultAuthor],
+    //afterRead: [populateAuthors],
   },
 }

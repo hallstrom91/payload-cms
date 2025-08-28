@@ -1,32 +1,30 @@
-import type { CollectionAfterReadHook } from 'payload'
+// import type { CollectionAfterReadHook, CollectionBeforeValidateHook } from 'payload'
+import { CollectionBeforeChangeHook } from 'payload'
 import { User } from '@/payload-types'
 
-export const populateAuthors: CollectionAfterReadHook = async ({ doc, req, req: { payload } }) => {
-  if (doc?.authors && doc?.authors?.length > 0) {
-    const authorDocs: User[] = []
+export const populateAuthors: CollectionBeforeChangeHook = async ({ req, data, originalDoc }) => {
+  const payload = req.payload
 
-    for (const author of doc.authors) {
-      try {
-        const authorDoc = await payload.findByID({
-          id: typeof author === 'object' ? author?.id : author,
-          collection: 'users',
-          depth: 0,
-        })
+  const raw = (data?.authors ?? originalDoc?.authors) as (string | { id: string })[] | undefined
+  const authorIDs = raw?.map((a) => (typeof a === 'object' ? a.id : a)).filter(Boolean) ?? []
 
-        if (authorDoc) {
-          authorDocs.push(authorDoc)
-        }
+  const populated: Array<{ authorId: string; fullName?: string | null }> = []
 
-        if (authorDocs.length > 0) {
-          doc.populateAuthors = authorDocs.map((authorDoc) => ({
-            id: authorDoc.id,
-            name: authorDoc.name,
-          }))
-        }
-      } catch {
-        // error
-      }
+  for (const id of authorIDs) {
+    try {
+      const u = (await payload.findByID({
+        collection: 'users',
+        id,
+        depth: 0, // no relations
+      })) as User
+
+      populated.push({
+        authorId: String(u.id),
+        fullName: (u as any).fullName ?? (u as any).name ?? u.email ?? null,
+      })
+    } catch {
+      // ignore (e)
     }
   }
-  return doc
+  return { ...data, populatedAuthors: populated }
 }

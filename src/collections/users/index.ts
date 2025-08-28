@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { protectedRoles } from './hooks/protectedRoles'
-import { admins, selfOrAdmin } from '@/access/roles'
-import { adminField } from '@/fields/admin'
-import { checkRole } from '@/access/checkRole'
+import { admins, selfOrAdmin, checkRole, adminField } from '@/access'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -38,6 +36,7 @@ export const Users: CollectionConfig = {
       saveToJWT: true,
       defaultValue: ['user'],
       access: {
+        read: () => true,
         // read: adminField, // fix so user can see roles correct
         update: adminField,
         create: adminField,
