@@ -1,11 +1,11 @@
 import type { CollectionConfig } from 'payload'
-import { admins, adminsOrEditors, selfOrAdmin } from '@/access/roles'
-import { authenticated } from '@/access/authenticated'
 import {
   lexicalEditor,
   FixedToolbarFeature,
   InlineToolbarFeature,
 } from '@payloadcms/richtext-lexical'
+import { admins, adminsOrEditors, selfOrAdmin, authenticated } from '@/access'
+import { YouTubeBlock } from '@/blocks/youtube'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -22,7 +22,6 @@ export const Media: CollectionConfig = {
       localized: true,
       required: true,
     },
-
     {
       name: 'caption',
       type: 'richText',
@@ -33,6 +32,14 @@ export const Media: CollectionConfig = {
           InlineToolbarFeature(),
         ],
       }),
+    },
+
+    {
+      name: 'variant',
+      type: 'blocks',
+      required: false,
+      maxRows: 1,
+      blocks: [YouTubeBlock],
     },
   ],
   upload: {

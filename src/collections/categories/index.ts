@@ -1,6 +1,5 @@
 import { CollectionConfig } from 'payload'
-import { admins, adminsOrEditors, selfOrAdmin } from '@/access/roles'
-import { authenticated } from '@/access/authenticated'
+import { admins, adminsOrEditors, selfOrAdmin, authenticated } from '@/access'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
