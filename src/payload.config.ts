@@ -7,10 +7,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
-import { Users } from './collections/Users'
-import { Media } from './collections/Media'
-import { Categories } from './collections/Categories'
-import { Posts } from './collections/Posts'
+import { Users, Media, Categories, Posts } from './collections'
 import { seedAdminIfEmpty } from './utils/seed'
 import { ENV } from './env'
 
