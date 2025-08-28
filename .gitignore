@@ -54,4 +54,4 @@ node_modules/
 *.sqlite
 *.pid
 docker-data/
-
+env.config.ts
